@@ -3,23 +3,59 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                String    @id @default(cuid())
-  name              String
-  email             String    @unique
-  passwordHash      String
-  preferences       String    @default("{}")
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+/// User roles for RBAC
+enum Role {
+  USER
+  ADMIN
+}
 
-  queries           Query[]
-  chatHistory       ChatMessage[]
-  
+/// Core user model — PII fields (phone, address) are AES-256-GCM encrypted at application layer
+model User {
+  id                  String    @id @default(cuid())
+  name                String
+  /// Encrypted at application layer via CryptoService before storage
+  email               String    @unique
+  passwordHash        String?
+  /// Google OAuth subject ID
+  googleId            String?   @unique
+  /// Whether email has been verified (Google = always true)
+  emailVerified       Boolean   @default(false)
+  /// TOTP/OTP secret for MFA, stored encrypted
+  mfaSecret           String?
+  mfaEnabled          Boolean   @default(false)
+  role                Role      @default(USER)
+  preferences         Json      @default("{}")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  queries             Query[]
+  chatHistory         ChatMessage[]
+  refreshTokens       RefreshToken[]
+
   @@index([email])
+  @@index([googleId])
+}
+
+/// Refresh token rotation — one record per active session
+model RefreshToken {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// bcrypt hash of the actual token (never store raw)
+  tokenHash   String   @unique
+  /// When the token expires (default 7 days)
+  expiresAt   DateTime
+  /// IP + User-Agent for audit
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Query {
@@ -27,21 +63,24 @@ model Query {
   userId            String
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   rawPrompt         String
-  parsedIntent      String
+  parsedIntent      Json      @default("{}")
   rating            Int?      // 1-5 stars
+  /// BullMQ job ID for traceability
+  jobId             String?
   timestamp         DateTime  @default(now())
 
   shipments         Shipment[]
   agentRewards      AgentReward[]
 
   @@index([userId])
+  @@index([jobId])
 }
 
 model Shipment {
   id                String    @id @default(cuid())
   queryId           String
   query             Query     @relation(fields: [queryId], references: [id], onDelete: Cascade)
-  shipmentPlan      String      // Full ShipmentPlan structure
+  shipmentPlan      Json      // Full ShipmentPlan structure
   status            String    @default("planned") // planned, in_transit, delivered, failed
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -61,7 +100,7 @@ model AgentReward {
   agentName         String    // OrchestratorAgent, RouteOptimizerAgent, etc.
   action            String    // Description of the action taken
   reward            Float     // -1.0 to 1.0
-  factors           String      // { costSavings, timeAccuracy, userSatisfaction, routeEfficiency }
+  factors           Json      // { costSavings, timeAccuracy, userSatisfaction, routeEfficiency }
   timestamp         DateTime  @default(now())
 
   @@index([queryId])
@@ -73,8 +112,8 @@ model RouteCache {
   id                String    @id @default(cuid())
   origin            String
   destination       String
-  waypoints         String      // Array of waypoint coordinates
-  routeData         String      // Full route data from Google Maps
+  waypoints         Json      // Array of waypoint coordinates
+  routeData         Json      // Full route data from Google Maps
   cachedAt          DateTime  @default(now())
   expiresAt         DateTime
 
@@ -95,12 +134,23 @@ model ChatMessage {
 }
 
 model UserPreference {
-  id                String    @id @default(cuid())
-  userId            String    @unique
-  preferredCarriers String      // ["DHL", "FedEx", "Maersk"]
-  weightPriority    String    @default("cost") // cost, speed, sustainability
-  currencyPreference String   @default("USD")
-  notificationSettings String   @default("{}")
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  preferredCarriers    Json      @default("[]")  // ["DHL", "FedEx", "Maersk"]
+  weightPriority       String    @default("cost") // cost, speed, sustainability
+  currencyPreference   String    @default("USD")
+  notificationSettings Json      @default("{}")
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+/// Persistent Q-table stored in DB for Meta-RL across sessions
+model AgentQTable {
+  id          String   @id @default(cuid())
+  agentName   String   @unique
+  qValue      Float    @default(0.5)
+  episodeCount Int     @default(0)
+  lastUpdated DateTime @default(now())
+
+  @@index([agentName])
 }

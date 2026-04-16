@@ -1,0 +1,13 @@
+# Grafana dashboard provisioning — auto-loads dashboards from /var/lib/grafana/dashboards
+apiVersion: 1
+
+providers:
+  - name: ShipMind Dashboards
+    orgId: 1
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

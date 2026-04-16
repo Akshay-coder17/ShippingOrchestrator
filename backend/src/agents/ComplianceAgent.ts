@@ -2,7 +2,7 @@
  * ComplianceAgent - Checks customs regulations and documentation requirements
  */
 
-import { ParsedShippingIntent, ComplianceData } from "@/types/index.js";
+import { ParsedShippingIntent, ComplianceData } from "../types/index.js";
 
 interface CountryRules {
   requiresCustoms: boolean;

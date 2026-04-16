@@ -3,7 +3,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { ParsedShippingIntent } from "@/types/index.js";
+import { ParsedShippingIntent } from "../types/index.js";
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,

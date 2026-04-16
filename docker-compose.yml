@@ -1,36 +1,261 @@
-version: '3.8'
+version: "3.9"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ShipMind — Full Enterprise Docker Compose
+#  All services on a single bridge network: shipmind-net
+#
+#  Services:
+#    Infrastructure:  postgres, redis
+#    Application:     backend, worker-1, worker-2, frontend
+#    Observability:   prometheus, loki, grafana, jaeger
+#
+#  Usage:
+#    cp .env.example .env  # fill in your API keys
+#    docker compose up --build
+#
+#  Observability endpoints:
+#    Grafana:   http://localhost:3000  (admin/admin)
+#    Jaeger:    http://localhost:16686
+#    Prometheus: http://localhost:9090
+#    Backend:   http://localhost:3001
+#    Frontend:  http://localhost:5173
+#
+#  Kubernetes note:
+#    Each top-level service maps 1:1 to a Kubernetes Deployment.
+#    The `shipmind-net` bridge = a Kubernetes Namespace.
+#    service names = K8s Service DNS names (e.g., postgres:5432).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+networks:
+  shipmind-net:
+    driver: bridge
+    name: shipmind-net
+
+volumes:
+  postgres_data:
+  redis_data:
+  grafana_data:
+  loki_data:
+  prometheus_data:
+
+# ── Shared environment template ───────────────────────────────────────────────
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql://shipmind:shipmind_secure@postgres:5432/shipmind
+  REDIS_URL: redis://redis:6379
+  JWT_SECRET: ${JWT_SECRET:-shipmind-dev-secret-CHANGE-IN-PRODUCTION}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:-shipmind-enc-key-32bytes-plschange}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:3001/api/auth/google/callback}
+  SMTP_HOST: ${SMTP_HOST:-smtp.ethereal.email}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASS: ${SMTP_PASS:-}
+  SMTP_FROM: ${SMTP_FROM:-noreply@shipmind.ai}
+  FRONTEND_URL: http://localhost:5173
+  NODE_ENV: production
+  LOG_LEVEL: info
+  # OpenTelemetry
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
 
 services:
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: shipmind-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: shipmind
       POSTGRES_USER: shipmind
-      POSTGRES_PASSWORD: shipmind_secure_password_change_me
+      POSTGRES_PASSWORD: shipmind_secure
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - shipmind-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U shipmind"]
+      test: ["CMD-SHELL", "pg_isready -U shipmind -d shipmind"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # ── Redis ────────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: shipmind-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - shipmind-net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-volumes:
-  postgres_data:
-  redis_data:
+  # ── Backend API server ────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: shipmind-backend
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+      PORT: "3001"
+      SERVICE_NAME: shipmind-backend
+    ports:
+      - "3001:3001"
+    networks:
+      - shipmind-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Run DB migration before starting
+    command: >
+      sh -c "npx prisma migrate deploy && node dist/index.js"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  # ── BullMQ Worker 1 ───────────────────────────────────────────────────────────
+  # Picks up orchestration jobs atomically with Redis locks
+  worker-1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: shipmind-worker-1
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+      SERVICE_NAME: shipmind-worker-1
+      WORKER_CONCURRENCY: "2"
+    networks:
+      - shipmind-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+  # ── BullMQ Worker 2 ───────────────────────────────────────────────────────────
+  # Second parallel worker — demonstrates horizontal scaling
+  worker-2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: shipmind-worker-2
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+      SERVICE_NAME: shipmind-worker-2
+      WORKER_CONCURRENCY: "2"
+    networks:
+      - shipmind-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+  # ── Frontend (Vite → nginx) ───────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3001
+        VITE_SOCKET_URL: http://localhost:3001
+        VITE_GOOGLE_MAPS_KEY: ${GOOGLE_MAPS_API_KEY:-}
+    container_name: shipmind-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    networks:
+      - shipmind-net
+    depends_on:
+      - backend
+
+  # ── Prometheus ────────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.49.1
+    container_name: shipmind-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    networks:
+      - shipmind-net
+
+  # ── Loki (log aggregator picked up by Grafana) ────────────────────────────────
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: shipmind-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./observability/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - shipmind-net
+
+  # ── Grafana ───────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: shipmind-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - shipmind-net
+    depends_on:
+      - prometheus
+      - loki
+
+  # ── Jaeger (distributed tracing UI) ──────────────────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:1.52
+    container_name: shipmind-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    networks:
+      - shipmind-net

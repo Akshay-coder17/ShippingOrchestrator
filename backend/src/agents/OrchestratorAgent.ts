@@ -2,15 +2,17 @@
  * OrchestratorAgent - Master agent that coordinates all sub-agents
  */
 
-import { ParsedShippingIntent, ShipmentPlan } from "@/types/index.js";
-import { AnthropicService } from "@/services/AnthropicService.js";
-import { RewardEngine } from "@/rl/RewardEngine.js";
+import { ParsedShippingIntent, ShipmentPlan } from "../types/index.js";
+import { RewardEngine } from "../rl/RewardEngine.js";
 import { RouteOptimizerAgent } from "./RouteOptimizerAgent.js";
 import { CarrierSelectionAgent } from "./CarrierSelectionAgent.js";
 import { ComplianceAgent } from "./ComplianceAgent.js";
 import { RiskAssessmentAgent } from "./RiskAssessmentAgent.js";
 import { CarbonFootprintAgent } from "./CarbonFootprintAgent.js";
 import { PricingAgent } from "./PricingAgent.js";
+import { childLogger } from "../lib/logger.js";
+
+const log = childLogger("OrchestratorAgent");
 
 export class OrchestratorAgent {
   private queryId: string;

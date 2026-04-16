@@ -2,8 +2,8 @@
  * RouteOptimizerAgent - Finds optimal multi-modal routes
  */
 
-import { ParsedShippingIntent, RouteData } from "@/types/index.js";
-import { GoogleMapsService } from "@/services/GoogleMapsService.js";
+import { ParsedShippingIntent, RouteData } from "../types/index.js";
+import { GoogleMapsService } from "../services/GoogleMapsService.js";
 
 export class RouteOptimizerAgent {
   /**

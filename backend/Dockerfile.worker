@@ -1,0 +1,39 @@
+# Worker Dockerfile — same build as backend but runs the BullMQ worker instead
+# Uses the same compiled dist/ from a shared builder stage
+
+# ── Build stage ─────────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY prisma ./prisma/
+RUN npm ci
+
+RUN npx prisma generate
+
+COPY tsconfig.json ./
+COPY src ./src/
+RUN npm run build
+
+# ── Runtime stage ────────────────────────────────────────────────────────────
+FROM node:20-alpine AS runtime
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY prisma ./prisma/
+RUN npm ci --omit=dev && npx prisma generate
+
+COPY --from=builder /app/dist ./dist
+
+RUN addgroup -S shipmind && adduser -S shipmind -G shipmind
+USER shipmind
+
+# Workers don't expose any HTTP port
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "require('ioredis').createClient(process.env.REDIS_URL).ping().then(() => process.exit(0)).catch(() => process.exit(1))" || exit 1
+
+# Entry point is the worker, not index.js
+CMD ["node", "dist/workers/orchestration.worker.js"]

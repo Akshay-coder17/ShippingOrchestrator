@@ -2,7 +2,7 @@
  * RiskAssessmentAgent - Evaluates shipping risks
  */
 
-import { ParsedShippingIntent, RiskData } from "@/types/index.js";
+import { ParsedShippingIntent, RiskData } from "../types/index.js";
 
 export class RiskAssessmentAgent {
   static async execute(

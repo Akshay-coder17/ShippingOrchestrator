@@ -2,7 +2,7 @@
  * PricingAgent - Calculates shipping costs
  */
 
-import { ParsedShippingIntent, CostBreakdown } from "@/types/index.js";
+import { ParsedShippingIntent, CostBreakdown } from "../types/index.js";
 
 export class PricingAgent {
   static async execute(

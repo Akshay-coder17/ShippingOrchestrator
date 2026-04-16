@@ -1,45 +1,92 @@
 /**
- * Analytics Routes
- * Endpoints for retrieving RL reward history, agent performance, and system metrics
+ * Analytics Routes — properly structured with authenticateToken middleware
+ * and Winston logger (no console.error, no raw JSON.parse on Prisma fields).
+ *
+ * Endpoints:
+ *  GET /api/analytics/overview        — Dashboard KPI stats
+ *  GET /api/analytics/rewards         — RL reward history
+ *  GET /api/analytics/agent-report    — Per-agent performance
+ *  GET /api/analytics/agent-qtable    — Current Q-table values (admin)
+ *
+ * @module routes/analytics
  */
 
-import express, { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
-import { verifyToken } from "../middleware/auth.js";
+import express, { Response } from "express";
+import { prisma } from "../lib/prisma.js";
+import { authenticateToken, requireRole, AuthenticatedRequest } from "../middleware/auth.js";
+import { RewardEngine } from "../rl/RewardEngine.js";
+import { childLogger } from "../lib/logger.js";
+import { trace } from "@opentelemetry/api";
 
 const router = express.Router();
-const prisma = new PrismaClient();
+const log = childLogger("AnalyticsRoutes");
+const tracer = trace.getTracer("shipmind-analytics");
 
-// Middleware to verify JWT token
-const auth = (req: any, res: Response, next: any) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "Unauthorized" });
-  
-  try {
-    req.userId = verifyToken(token); // This will decode the token
-    next();
-  } catch (error) {
-    res.status(401).json({ error: "Invalid token" });
-  }
-};
-
+// ─── GET /api/analytics/overview ─────────────────────────────────────────────
 /**
- * GET /api/analytics/rewards
- * Get RL reward history for user's queries
+ * High-level KPI stats for the dashboard.
+ * Returns: totalShipments, userQueries, avgRating, activeRoutes, agentPerformance
  */
-router.get("/rewards", auth, async (req: any, res: Response) => {
+router.get("/overview", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const span = tracer.startSpan("analytics.overview");
   try {
-    const userId = req.userId;
-    
+    const userId = req.userId!;
+
+    const [queries, shipments, agentRewards] = await Promise.all([
+      prisma.query.findMany({ where: { userId } }),
+      prisma.shipment.findMany({ where: { query: { userId } } }),
+      prisma.agentReward.findMany({ where: { query: { userId } } }),
+    ]);
+
+    const ratedQueries = queries.filter((q) => q.rating !== null);
+    const avgRating =
+      ratedQueries.length > 0
+        ? ratedQueries.reduce((s, q) => s + (q.rating ?? 0), 0) / ratedQueries.length
+        : null;
+
+    const agentStats: Record<string, { totalReward: number; count: number; avgReward: number }> = {};
+    for (const ar of agentRewards) {
+      if (!agentStats[ar.agentName]) {
+        agentStats[ar.agentName] = { totalReward: 0, count: 0, avgReward: 0 };
+      }
+      agentStats[ar.agentName].totalReward += ar.reward;
+      agentStats[ar.agentName].count++;
+      agentStats[ar.agentName].avgReward =
+        agentStats[ar.agentName].totalReward / agentStats[ar.agentName].count;
+    }
+
+    const activeRoutes = shipments.filter((s) => s.status === "in_transit").length;
+
+    span.end();
+    res.json({
+      totalShipments: shipments.length,
+      userQueries: queries.length,
+      avgRating,
+      activeRoutes,
+      agentPerformance: agentStats,
+    });
+  } catch (error) {
+    span.recordException(error as Error);
+    span.end();
+    log.error("Overview fetch failed", {
+      error: (error as Error).message,
+      stack: (error as Error).stack,
+      userId: req.userId,
+      requestId: (req as any).requestId,
+    });
+    res.status(500).json({ error: "Failed to fetch overview" });
+  }
+});
+
+// ─── GET /api/analytics/rewards ──────────────────────────────────────────────
+/**
+ * RL reward history for the authenticated user's queries.
+ */
+router.get("/rewards", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
     const rewards = await prisma.agentReward.findMany({
-      where: {
-        query: {
-          userId: userId,
-        },
-      },
-      orderBy: {
-        timestamp: "desc",
-      },
+      where: { query: { userId: req.userId! } },
+      orderBy: { timestamp: "desc" },
       take: 100,
     });
 
@@ -49,121 +96,93 @@ router.get("/rewards", auth, async (req: any, res: Response) => {
         agentName: r.agentName,
         action: r.action,
         reward: r.reward,
-        factors: JSON.parse(r.factors || "{}"),
+        // factors is already a JSON object from Prisma — no JSON.parse needed
+        factors: r.factors,
         timestamp: r.timestamp,
       })),
     });
-  } catch (error: any) {
-    console.error("Error fetching rewards:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    log.error("Rewards fetch failed", {
+      error: (error as Error).message,
+      userId: req.userId,
+      requestId: (req as any).requestId,
+    });
+    res.status(500).json({ error: "Failed to fetch rewards" });
   }
 });
 
+// ─── GET /api/analytics/agent-report ─────────────────────────────────────────
 /**
- * GET /api/analytics/overview
- * Get high-level stats: total shipments, avg satisfaction, agent performance
+ * Detailed per-agent performance report (last 30 days).
+ * Query param: ?agentName=RouteOptimizer (optional — returns all if omitted)
  */
-router.get("/overview", auth, async (req: any, res: Response) => {
+router.get("/agent-report", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = req.userId;
+    const { agentName, days } = req.query;
+    const lookback = parseInt(days as string || "30");
 
-    // Total queries and shipments
-    const queries = await prisma.query.findMany({
-      where: { userId },
-    });
+    if (agentName) {
+      // Single-agent detail
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - lookback);
 
-    const shipments = await prisma.shipment.findMany({
-      where: {
-        query: {
-          userId: userId,
+      const rewards = await prisma.agentReward.findMany({
+        where: {
+          agentName: agentName as string,
+          query: { userId: req.userId! },
+          timestamp: { gte: cutoff },
         },
-      },
-    });
+        orderBy: { timestamp: "desc" },
+      });
 
-    // Average user rating
-    const ratingSum = queries.reduce((sum, q) => sum + (q.rating || 0), 0);
-    const avgRating = queries.length > 0 ? ratingSum / queries.length : 0;
+      const totalReward = rewards.reduce((s, r) => s + r.reward, 0);
+      const avgReward = rewards.length > 0 ? totalReward / rewards.length : 0;
 
-    // Agent performance summary
-    const agentRewards = await prisma.agentReward.findMany({
-      where: {
-        query: {
-          userId: userId,
-        },
-      },
-    });
-
-    const agentStats: Record<
-      string,
-      { totalReward: number; count: number; avgReward: number }
-    > = {};
-
-    agentRewards.forEach((ar) => {
-      if (!agentStats[ar.agentName]) {
-        agentStats[ar.agentName] = { totalReward: 0, count: 0, avgReward: 0 };
-      }
-      agentStats[ar.agentName].totalReward += ar.reward;
-      agentStats[ar.agentName].count += 1;
-      agentStats[ar.agentName].avgReward =
-        agentStats[ar.agentName].totalReward / agentStats[ar.agentName].count;
-    });
-
-    res.json({
-      totalQueries: queries.length,
-      totalShipments: shipments.length,
-      avgUserRating: avgRating,
-      agentPerformance: agentStats,
-    });
-  } catch (error: any) {
-    console.error("Error fetching overview:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * GET /api/analytics/agent-report
- * Detailed report on a specific agent's performance
- */
-router.get("/agent-report", auth, async (req: any, res: Response) => {
-  try {
-    const { agentName } = req.query;
-    const userId = req.userId;
-
-    if (!agentName) {
-      return res.status(400).json({ error: "agentName query param required" });
+      res.json({
+        agentName,
+        totalActions: rewards.length,
+        totalReward,
+        avgReward,
+        recentActions: rewards.slice(0, 20).map((r) => ({
+          action: r.action,
+          reward: r.reward,
+          factors: r.factors,
+          timestamp: r.timestamp,
+        })),
+      });
+    } else {
+      // All-agents report
+      const report = await RewardEngine.generateAgentReport(lookback);
+      res.json({ agents: report, lookbackDays: lookback });
     }
-
-    const rewards = await prisma.agentReward.findMany({
-      where: {
-        agentName: agentName as string,
-        query: {
-          userId: userId,
-        },
-      },
-      orderBy: {
-        timestamp: "desc",
-      },
+  } catch (error) {
+    log.error("Agent report fetch failed", {
+      error: (error as Error).message,
+      userId: req.userId,
     });
-
-    const totalReward = rewards.reduce((sum, r) => sum + r.reward, 0);
-    const avgReward = rewards.length > 0 ? totalReward / rewards.length : 0;
-
-    res.json({
-      agentName,
-      totalActions: rewards.length,
-      totalReward,
-      avgReward,
-      recentActions: rewards.slice(0, 20).map((r) => ({
-        action: r.action,
-        reward: r.reward,
-        factors: JSON.parse(r.factors || "{}"),
-        timestamp: r.timestamp,
-      })),
-    });
-  } catch (error: any) {
-    console.error("Error fetching agent report:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Failed to fetch agent report" });
   }
 });
+
+// ─── GET /api/analytics/agent-qtable ─────────────────────────────────────────
+/**
+ * Returns current Q-table values (ADMIN only) — shows Meta-RL state.
+ */
+router.get(
+  "/agent-qtable",
+  authenticateToken,
+  requireRole("ADMIN"),
+  async (_req: AuthenticatedRequest, res: Response) => {
+    try {
+      const qtable = await prisma.agentQTable.findMany({
+        orderBy: { agentName: "asc" },
+      });
+      res.json({ qtable });
+    } catch (error) {
+      log.error("Q-table fetch failed", { error: (error as Error).message });
+      res.status(500).json({ error: "Failed to fetch Q-table" });
+    }
+  }
+);
 
 export default router;

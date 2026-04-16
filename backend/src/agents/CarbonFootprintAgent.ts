@@ -2,7 +2,7 @@
  * CarbonFootprintAgent - Calculates environmental impact
  */
 
-import { ParsedShippingIntent, CarbonData } from "@/types/index.js";
+import { ParsedShippingIntent, CarbonData } from "../types/index.js";
 
 export class CarbonFootprintAgent {
   // CO2 emissions per km per kg (in grams)

@@ -2,7 +2,7 @@
  * CarrierSelectionAgent - Selects best carriers based on criteria
  */
 
-import { ParsedShippingIntent, CarrierData } from "@/types/index.js";
+import { ParsedShippingIntent, CarrierData } from "../types/index.js";
 
 interface MockCarrier {
   name: string;

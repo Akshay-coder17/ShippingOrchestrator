@@ -1,441 +1,347 @@
-# 🚀 ShipMind - Intelligent Agentic Shipping Orchestration Platform
-
-![ShipMind Architecture](./docs/shipmind-architecture.txt)
-
-An **advanced, production-ready** full-stack web application demonstrating intelligent shipping logistics orchestration powered by **multi-agent AI**, **reinforcement learning**, and **real-time interactive visualization**.
-
-## 🎯 Core Features
-
-### 🤖 Multi-Agent AI System
-- **OrchestratorAgent**: Master coordinator that decomposes user queries into specialized tasks
-- **RouteOptimizerAgent**: Finds optimal multi-modal routes using Google Maps APIs
-- **CarrierSelectionAgent**: Intelligently selects carriers based on price/speed/reliability
-- **ComplianceAgent**: Validates customs requirements and documentation
-- **RiskAssessmentAgent**: Evaluates shipping risks and suggests mitigations
-- **CarbonFootprintAgent**: Calculates environmental impact per transport mode
-- **PricingAgent**: Generates detailed cost breakdowns
-
-### 🧠 Reinforcement Learning Engine
-- **Q-Learning Implementation**: Each agent maintains historical reward signals
-- **Meta-RL Controller**: Orchestrator learns which agents to trust based on past performance
-- **Persistent Reward Storage**: All decisions and outcomes tracked in PostgreSQL
-- **Agent Performance Dashboard**: Real-time monitoring of agent Q-values and success rates
-
-### 🗺️ Interactive Map Visualization
-- Real-time animated route drawing from origin → waypoints → destination
-- Pulsing origin/destination markers with color-coding by transport mode
-- Draggable markers for dynamic route recalculation
-- 3D tilt view with transport mode segmentation
-
-### 🎨 Glassmorphism UI with Production Animations
-- Dark theme with electric blue/cyan accents
-- Smooth scroll reveal animations via Intersection Observer + Framer Motion
-- Custom cursor with glowing effects (GSAP-powered)
-- Three.js elements: floating metric cards, agent graph topology
-- Real-time agent status indicators lighting up during orchestration
-
-### 💬 Contextual AI Chatbot
-- Floating widget connected to Claude API
-- System prompt includes user profile, past queries, and active shipments
-- Supports natural conversation: "What's the cheapest route to Tokyo?"
-- Markdown-rendered responses with domain-specific knowledge
-
-## 🗂️ Project Structure
-
-```
-shipmind/
-├── backend/
-│   ├── src/
-│   │   ├── agents/
-│   │   │   ├── OrchestratorAgent.ts      # Master coordinator
-│   │   │   ├── RouteOptimizerAgent.ts
-│   │   │   ├── CarrierSelectionAgent.ts
-│   │   │   ├── ComplianceAgent.ts
-│   │   │   ├── RiskAssessmentAgent.ts
-│   │   │   ├── CarbonFootprintAgent.ts
-│   │   │   └── PricingAgent.ts
-│   │   ├── rl/
-│   │   │   ├── RewardEngine.ts           # Q-learning + meta-RL
-│   │   │   └── MetaRLController.ts
-│   │   ├── services/
-│   │   │   ├── AnthropicService.ts       # Claude API wrapper
-│   │   │   ├── GoogleMapsService.ts
-│   │   │   └── WeatherService.ts
-│   │   ├── routes/
-│   │   │   ├── auth.ts
-│   │   │   ├── shipments.ts              # Main orchestration endpoint
-│   │   │   └── analytics.ts              # RL reward history
-│   │   ├── middleware/
-│   │   └── types/                        # TypeScript interfaces
-│   ├── prisma/
-│   │   └── schema.prisma                 # PostgreSQL schema with RL tables
-│   ├── package.json
-│   └── tsconfig.json
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── dashboard/                # Layout, sidebar navigation
-│   │   │   ├── map/                      # Interactive Google Maps
-│   │   │   ├── three/                    # Three.js 3D elements
-│   │   │   ├── chat/                     # Chatbot widget
-│   │   │   └── ui/                       # Design system (Button, Card, etc)
-│   │   ├── pages/
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── NewShipment.tsx           # Main orchestration UI
-│   │   │   ├── ShipmentDetail.tsx
-│   │   │   ├── Analytics.tsx
-│   │   │   └── Auth.tsx
-│   │   ├── hooks/                        # useSocket, useApi, custom hooks
-│   │   ├── store/                        # Zustand global state
-│   │   ├── styles/                       # Global CSS + animations
-│   │   └── types/                        # TypeScript interfaces
-│   ├── index.html
-│   ├── vite.config.ts
-│   ├── tailwind.config.js
-│   └── package.json
-│
-└── README.md (this file)
-```
-
-## ⚙️ Tech Stack
-
-### Frontend
-- **React 18** + TypeScript
-- **Vite** for lightning-fast development
-- **Tailwind CSS** + **Framer Motion** for animations
-- **GSAP** for cursor and scroll effects
-- **Three.js** + **react-three-fiber** for 3D
-- **Google Maps API** (@react-google-maps/api)
-- **Recharts** for analytics
-- **Socket.io-client** for real-time updates
-- **Zustand** for state management
-
-### Backend
-- **Node.js 18+** + **Express.js** (TypeScript)
-- **PostgreSQL** + **Prisma ORM**
-- **Redis** for session/pub-sub
-- **Socket.io** for real-time streams
-- **Anthropic Claude API** (claude-sonnet-4-20250514)
-- **JWT** for authentication
-- **Docker** ready (optional)
-
-### Infrastructure
-- PostgreSQL database
-- Redis cache
-- Express + Socket.io server
-- Environment-based configuration
-
-## 🚀 Quick Start
-
-### Prerequisites
-- **Node.js** 18+ and **npm/yarn**
-- **PostgreSQL** database (local or cloud)
-- **Redis** (optional, for caching)
-- **API Keys**:
-  - Anthropic Claude API key
-  - Google Maps API key (enable: Maps JS, Directions, Distance Matrix)
-  - OpenWeather API key (optional)
-
-### 1. Clone & Setup
-
-```bash
-# Clone the project
-cd /Users/harikrishna/Desktop/ship\ deep/shipmind
-
-# Install root dependencies
-npm install
-
-# Or use yarn
-yarn install
-```
-
-### 2. Backend Setup
-
-```bash
-cd backend
-
-# Copy environment file
-cp .env.example .env
-
-# Edit .env with your credentials
-# DATABASE_URL=postgresql://user:pass@localhost:5432/shipmind
-# ANTHROPIC_API_KEY=sk-...
-# GOOGLE_MAPS_API_KEY=...
-# JWT_SECRET=your-secret-key
-
-# Install dependencies
-npm install
-
-# Setup database & run migrations
-npm run prisma:push
-
-# Start dev server
-npm run dev
-```
-
-Backend runs on **http://localhost:3001**
-
-### 3. Frontend Setup
-
-```bash
-cd frontend
-
-# Copy environment file
-cp .env.example .env.local
-
-# Edit .env.local
-# VITE_GOOGLE_MAPS_KEY=your-key
-# VITE_API_BASE_URL=http://localhost:3001/api
-
-# Install dependencies
-npm install
-
-# Start dev server
-npm run dev
-```
-
-Frontend runs on **http://localhost:5173**
-
-### 4. Test the Application
-
-1. **Register**: Go to http://localhost:5173/auth/register and create an account
-2. **Create Shipment**: Navigate to "New Shipment"
-3. **Type a Query**: E.g., "Ship 500kg electronics from Chennai to Berlin by Friday, cost-optimized"
-4. **Watch Orchestration**: Real-time agent activity streams, map animates route
-5. **View Results**: Full shipment plan with cost, compliance, risk, carbon footprint
-
-## 📊 Sample Shipment Plan Output
-
-```json
-{
-  "shipmentId": "SHP-1712345678",
-  "status": "planned",
-  "query": "Ship 500kg electronics Chennai to Berlin by Friday",
-  "route": {
-    "origin": { "name": "Chennai, India", "lat": 13.0827, "lng": 80.2707 },
-    "destination": { "name": "Berlin, Germany", "lat": 52.52, "lng": 13.405 },
-    "waypoints": [
-      { "name": "Dubai Jebel Ali Port", "lat": 24.97, "lng": 55.06, "role": "seaport", "mode": "sea→sea" },
-      { "name": "Frankfurt Airport", "lat": 50.03, "lng": 8.57, "role": "airport", "mode": "air→road" }
-    ],
-    "segments": [
-      { "from": "Chennai", "to": "Port", "mode": "road", "distanceKm": 20, "durationHours": 0.75 },
-      { "from": "Port", "to": "Dubai", "mode": "sea", "distanceKm": 3400, "durationHours": 96 },
-      { "from": "Dubai", "to": "Frankfurt", "mode": "air", "distanceKm": 4900, "durationHours": 7 },
-      { "from": "Frankfurt", "to": "Berlin", "mode": "road", "distanceKm": 550, "durationHours": 5 }
-    ],
-    "totalDistanceKm": 8870,
-    "totalDurationHours": 108.75
-  },
-  "carrier": { "name": "DHL Express + Maersk", "reliability": 0.94, "serviceLevel": "Express" },
-  "cost": { "freight": 1200, "customs": 340, "handling": 150, "insurance": 80, "total": 1770, "currency": "USD" },
-  "eta": "2024-04-20T18:00:00Z",
-  "compliance": {
-    "requiresCustoms": true,
-    "documents": ["Commercial Invoice", "Packing List", "HS Code 8471", "CE Mark"],
-    "tariffRate": "3.7%"
-  },
-  "risk": {
-    "level": "medium",
-    "factors": ["Monsoon season Chennai", "Frankfurt airport delay index: 1.2"],
-    "mitigations": ["Book covered storage at Chennai Port"]
-  },
-  "carbon": { "totalCO2_kg": 4200, "breakdown": { "road": 12, "sea": 980, "air": 3208 } },
-  "agentRewards": {
-    "routeOptimizer": 0.82,
-    "carrierSelection": 0.91,
-    "compliance": 1.0,
-    "riskAssessment": 0.75,
-    "carbonFootprint": 0.89,
-    "pricing": 0.85
-  }
-}
-```
-
-## 🧠 Reinforcement Learning Architecture
-
-### Reward Function
-```typescript
-reward = (0.35 * costSavings + 
-          0.25 * timeAccuracy + 
-          0.30 * userSatisfaction + 
-          0.10 * routeEfficiency) * 2 - 1  // [-1.0, +1.0]
-```
-
-### Q-Learning Update
-```typescript
-Q(s,a) = Q(s,a) + α[r + γ·max(Q(s',a')) - Q(s,a)]
-// α = 0.1 (learning rate)
-// γ = 0.95 (discount factor)
-```
-
-### Database Tables for RL
-- `agent_rewards`: All agent decisions + rewards + success metrics
-- `shipments`: Full shipment plans for outcome tracking
-- `queries`: User queries with ratings (1-5 stars)
-- `route_cache`: Cached routes for pattern recognition
-
-### Agent Selection Strategy
-```typescript
-// Epsilon-greedy exploration
-if Math.random() < epsilon (0.1):
-  select random agent  // Explore
-else:
-  select agent with highest Q-value  // Exploit
-```
-
-## 📡 Real-Time Socket.io Events
-
-**Client → Server:**
-- `user:authenticate`: JWT auth on connect
-- `shipment:request`: User submits query
-
-**Server → Client:**
-- `agent:progress`: Real-time progress (e.g., "RouteOptimizer evaluating 12 routes")
-- `agent:completed`: Sub-agent finished with result
-- `orchestration:complete`: Full plan generated + shipmentId
-- `shipment:statusUpdate`: Status changes during fulfillment
-
-## 🎨 UI/UX Design
-
-### Color Scheme
-```
---bg-primary: #050d1a
---bg-card: rgba(10, 25, 50, 0.7)    /* glassmorphism */
---accent: #00d4ff            /* electric blue */
---accent-green: #00ff88
---accent-orange: #ff6b35
---text-primary: #e8f4fd
---border: rgba(0, 212, 255, 0.15)
-```
-
-### Animation Highlights
-1. **Custom Cursor**: Glowing dot + trailing ring (GSAP)
-2. **Scroll Reveals**: Sections fade+slide on scroll (Intersection Observer + Framer Motion)
-3. **Agent Graph**: 3D hexagonal nodes connected by glowing lines (Three.js)
-4. **Route Animation**: Polyline strokes animate from origin→destination
-5. **Loading States**: Neural network pulse visualization
-
-## 📚 API Documentation
-
-### Authentication
-```bash
-POST   /api/auth/register    # { name, email, password }
-POST   /api/auth/login       # { email, password }
-GET    /api/auth/profile     # Requires: Bearer token
-```
-
-### Shipments (Main Orchestration)
-```bash
-POST   /api/shipments/orchestrate    # { prompt: "Ship X from Y to Z..." }
-GET    /api/shipments                # List user shipments
-GET    /api/shipments/:id            # Get single shipment plan
-PUT    /api/shipments/:id/rating     # { rating: 1-5, factors: {} }
-```
-
-### Analytics & RL
-```bash
-GET    /api/analytics/rewards        # Agent reward history
-GET    /api/analytics/overview       # User + agent stats
-GET    /api/analytics/agent-report   # Detailed agent performance
-```
-
-## 🏆 Hackathon Winning Features
-
-✅ **Track 1 Compliance**: Complete shipping orchestration pipeline  
-✅ **Agentic AI**: 7 specialized agents + master orchestrator  
-✅ **RL Engine**: Q-learning with meta-RL agent weighting  
-✅ **Google Maps**: Animated interactive route visualization  
-✅ **NLP Intelligence**: Claude API parsing + personalization  
-✅ **Database**: PostgreSQL with full query/reward history  
-✅ **Real-Time**: Socket.io streaming of agent activity  
-✅ **Production UI**: Glassmorphism, animations, 3D elements  
-✅ **Chatbot**: Context-aware Claude assistant  
-✅ **Innovation**: RL improves carrier selection with usage  
-
-## 🔒 Security Best Practices
-
-- ✅ JWT authentication with expiry
-- ✅ Bcryptjs password hashing
-- ✅ CORS configuration
-- ✅ Helmet.js security headers
-- ✅ Environment variable isolation
-- ✅ SQL injection prevention (Prisma ORM)
-- ✅ Rate limiting (production)
-
-## 📈 Performance Optimizations
-
-- Vite bundling with code splitting
-- Tailwind CSS purge for smaller builds
-- Prisma query optimization + caching
-- Redis for session/pub-sub
-- Lazy loading of map + 3D components
-- Compression middleware (gzip)
-
-## 🐛 Troubleshooting
-
-### "Connection refused" on port 3001
-```bash
-# Kill existing process
-lsof -i :3001 | grep LISTEN | awk '{print $2}' | xargs kill -9
-
-# Restart backend
-cd backend && npm run dev
-```
-
-### Database connection fails
-```bash
-# Verify PostgreSQL is running
-psql -U postgres -c "SELECT version();"
-
-# Check DATABASE_URL in .env
-echo $DATABASE_URL
-```
-
-### Google Maps API key errors
-- Enable these APIs in GCP console:
-  - Maps JavaScript API
-  - Directions API
-  - Distance Matrix API
-  - Geocoding API
-
-### Frontend not connecting to backend
-- Check CORS settings in `backend/src/index.ts`
-- Verify proxy in `frontend/vite.config.ts`
-- Frontend should be on `http://localhost:5173`
-
-## 📝 Build & Deployment
-
-```bash
-# Production build
-npm run build
-
-# Backend
-cd backend && npm run build
-# Outputs to: backend/dist/
-
-# Frontend
-cd frontend && npm run build
-# Outputs to: frontend/dist/
-
-# Run production
-NODE_ENV=production node backend/dist/index.js
-```
-
-## 📞 Support & Contributing
-
-- **Issues?** Check `.env` files are configured
-- **Questions?** Refer to architecture comments in source code
-- **Extending?** Follow TypeScript + Prisma patterns
-
-## 📄 License
-
-MIT License - See LICENSE file
+# 🚢 ShipMind — Intelligent Agentic Shipping Orchestration Platform
+
+> **DeepFrog Hackathon — Track 1: Agentic AI Platform**
+
+[![Docker](https://img.shields.io/badge/Docker-Compose-blue)](https://docs.docker.com/compose/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-PostgreSQL-green)](https://www.prisma.io/)
+[![BullMQ](https://img.shields.io/badge/BullMQ-Redis-red)](https://bullmq.io/)
+[![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-Jaeger-orange)](https://opentelemetry.io/)
 
 ---
 
-**Built for DeepFrog Hackathon Track 1: Shipping Intelligence**  
-*Powered by Claude Sonnet 4, Google Maps, and Multi-Agent Reinforcement Learning*
+## 📋 Problem Statement
 
-🚀 **Ship Smart. Orchestrate Intelligently.**
+Global shipping is fragmented, opaque, and error-prone. Logistics managers spend hours manually gathering carrier quotes, verifying customs compliance, estimating carbon impact, and assessing route risk — only to make suboptimal decisions based on incomplete data.
+
+**ShipMind** solves this with a single natural-language prompt: *"Ship 500kg electronics from Chennai to Berlin by next Friday, cost-optimized."* Seven specialized AI agents activate instantly, orchestrate in parallel, and return a complete, RL-optimized shipping plan in seconds.
+
+---
+
+## 💡 Solution
+
+ShipMind is an **Intelligent Agentic Shipping Orchestration Platform** built on:
+
+- **Multi-Agent Architecture**: 1 Orchestrator + 6 specialized sub-agents running in parallel
+- **Reinforcement Learning**: Q-learning with Meta-RL (persistent cross-session Q-table in PostgreSQL)
+- **Event-Driven Scalability**: BullMQ + Redis, with 2 parallel worker containers
+- **Real-time Streaming**: Socket.io pushes agent progress events to the browser as they happen
+- **Enterprise Security**: Google OAuth 2.0, JWT + Refresh Tokens, MFA/OTP, RBAC, AES-256-GCM PII encryption
+- **Full Observability**: OpenTelemetry → Jaeger, Winston → Loki, Prometheus → Grafana
+
+---
+
+## 🤖 Agent Architecture
+
+```
+User Prompt (NL)
+      │
+      ▼
+[AnthropicService] ← Claude claude-sonnet-4-20250514 parses intent
+      │
+      ▼
+[BullMQ Queue] ──→ [Worker-1] ──┐
+                ──→ [Worker-2] ──┤
+                                 ▼
+                     [OrchestratorAgent]
+                      ┌──────────────────────────────────────┐
+                      │                                      │
+              [RouteOptimizerAgent]    [CarrierSelectionAgent]
+              [ComplianceAgent]         [RiskAssessmentAgent]
+              [CarbonFootprintAgent]    [PricingAgent]
+                      └──────────────────────────────────────┘
+                                 │
+                      [RewardEngine (Q-learning RL)]
+                                 │
+                     [ShipmentPlan → PostgreSQL]
+                                 │
+                    [Socket.io → Frontend → Map + Globe]
+```
+
+### RL / Meta-RL Engine
+
+- **Algorithm**: Q-learning with epsilon-greedy (ε=0.1) exploration
+- **Q-update rule**: `Q ← Q + α × (r - Q)` (α=0.1)
+- **Persistent Q-table**: `AgentQTable` in PostgreSQL — values survive server restarts
+- **Reward factors**: Cost savings 35%, Time accuracy 25%, User satisfaction 30%, Route efficiency 10%
+- **Meta-RL**: Each user rating (1-5★) triggers a reward update across all involved agents
+
+---
+
+## 🛠 Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **AI / LLM** | Claude claude-sonnet-4-20250514 (Anthropic) |
+| **Backend** | Node.js 20 · Express 4 · TypeScript 5 |
+| **ORM** | Prisma 5 + PostgreSQL 16 |
+| **Queue** | BullMQ 5 + Redis 7 |
+| **Real-time** | Socket.io 4 + Redis Adapter (multi-instance pub/sub) |
+| **Security** | passport-google-oauth20 · jsonwebtoken · bcryptjs · node:crypto AES-256-GCM |
+| **Observability** | Winston + Loki · OpenTelemetry + Jaeger · prom-client + Prometheus + Grafana |
+| **Frontend** | React 18 · TypeScript · Vite · Tailwind CSS |
+| **3D Globe** | Three.js · @react-three/fiber · @react-three/drei |
+| **Maps** | Google Maps JS API · @react-google-maps/api |
+| **Animations** | Framer Motion · GSAP |
+| **State** | Zustand |
+| **Containers** | Docker · Docker Compose |
+
+---
+
+## 🗂 Project Structure (MVC)
+
+```
+Ship_deep/
+├── backend/
+│   ├── prisma/
+│   │   └── schema.prisma          # PostgreSQL schema (all models)
+│   └── src/
+│       ├── agents/                # 6 sub-agents + OrchestratorAgent
+│       ├── lib/                   # Singletons: prisma, redis, queue, logger, metrics, tracer
+│       ├── middleware/            # auth.ts (JWT verify, RBAC)
+│       ├── rl/                    # RewardEngine (Q-learning + Meta-RL)
+│       ├── routes/                # Express routers (auth, shipments, analytics)
+│       ├── services/              # AnthropicService, AuthService, CryptoService, GoogleMapsService
+│       ├── types/                 # Shared TypeScript interfaces
+│       ├── workers/               # orchestration.worker.ts (BullMQ processor)
+│       └── index.ts               # Express + Socket.io entry point
+├── frontend/
+│   └── src/
+│       ├── components/
+│       │   ├── dashboard/         # Layout.tsx
+│       │   ├── map/               # InteractiveMap.tsx (Google Maps animated route)
+│       │   └── ui/                # GlobeScene (Three.js), CustomCursor, UI primitives
+│       ├── hooks/                 # useSocket, useApi (with JWT auto-refresh)
+│       ├── pages/                 # Auth, Dashboard, NewShipment, Chatbot
+│       ├── store/                 # Zustand store (auth + orchestration state)
+│       └── types/                 # Frontend type definitions
+├── observability/
+│   ├── prometheus.yml             # Scrape config
+│   ├── loki-config.yml            # Loki storage config
+│   └── grafana/
+│       ├── provisioning/
+│       │   ├── datasources/       # Auto-wires Prometheus, Loki, Jaeger
+│       │   └── dashboards/        # Dashboard provider config
+│       └── dashboards/
+│           └── shipmind.json      # Pre-built ShipMind dashboard
+└── docker-compose.yml             # All 10 services on shipmind-net
+```
+
+---
+
+## 🔐 Security Architecture
+
+| Feature | Implementation |
+|---|---|
+| Google OAuth 2.0 | passport-google-oauth20 |
+| JWT Access Tokens | 15-minute HS256, issued on login/OAuth |
+| Refresh Token Rotation | 7-day bcrypt-hashed tokens in PostgreSQL |
+| MFA / OTP | 6-digit code, bcrypt-hashed in Redis, 10-min TTL, Nodemailer |
+| RBAC | `ADMIN` / `USER` roles, `requireRole()` middleware |
+| PII Encryption | AES-256-GCM via `CryptoService` (node:crypto) |
+| PII Masking | Email masked in all API responses (`u***@domain.com`) |
+| Helmet | CSP, HSTS, X-Frame-Options headers |
+
+---
+
+## 📡 Observability
+
+| Tool | Purpose | URL |
+|---|---|---|
+| **Grafana** | Dashboards (HTTP metrics, agent RL, queue depth, logs) | http://localhost:3000 |
+| **Prometheus** | Metrics scraping | http://localhost:9090 |
+| **Jaeger** | Distributed traces (Express → Redis → Prisma → BullMQ) | http://localhost:16686 |
+| **Loki** | Structured log aggregation (all Winston logs) | via Grafana |
+
+All Winston log lines include `traceId` + `spanId` from the active OpenTelemetry span, linking logs to traces.
+
+---
+
+## 🚀 How to Run
+
+### Prerequisites
+
+- Docker Desktop (with WSL2 on Windows)
+- Git
+
+### System Setup Steps (SSS)
+
+**1. Clone the repository**
+```bash
+git clone https://github.com/Akshay-coder17/ShippingOrchestrator.git
+cd ShippingOrchestrator/Ship_deep
+```
+
+**2. Configure environment variables**
+```bash
+cp backend/.env.example .env
+```
+
+Edit `.env` and fill in:
+```env
+# Required for AI orchestration
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Required for animated map
+GOOGLE_MAPS_API_KEY=AIza...
+
+# Required for Google OAuth (optional for local testing)
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_CALLBACK_URL=http://localhost:3001/api/auth/google/callback
+
+# Email OTP for MFA (optional — OTP is logged to console in dev mode)
+SMTP_HOST=smtp.ethereal.email
+SMTP_PORT=587
+SMTP_USER=...
+SMTP_PASS=...
+
+# Security (change these in production!)
+JWT_SECRET=your-super-secret-jwt-key-min-32-chars
+ENCRYPTION_KEY=your-32-byte-encryption-key-here!
+```
+
+**3. Start all services**
+```bash
+docker compose up --build
+```
+
+This starts 10 services:
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:3001 |
+| Grafana | http://localhost:3000 (admin/admin) |
+| Jaeger UI | http://localhost:16686 |
+| Prometheus | http://localhost:9090 |
+| PostgreSQL | localhost:5432 |
+| Redis | localhost:6379 |
+| Loki | localhost:3100 |
+| Worker-1 | (internal) |
+| Worker-2 | (internal) |
+
+**4. Verify everything is healthy**
+```bash
+curl http://localhost:3001/health
+# {"status":"ok","service":"shipmind-backend","timestamp":"..."}
+
+curl http://localhost:3001/metrics
+# # HELP shipmind_orchestrations_total ...
+```
+
+**5. Grafana dashboards**
+- Open http://localhost:3000 (admin/admin)
+- Go to Dashboards → ShipMind Enterprise
+- Datasources (Prometheus, Loki, Jaeger) are auto-provisioned
+
+---
+
+## 🎮 Demo Walkthrough (For Judges)
+
+1. **Open** http://localhost:5173
+2. **Register** or click **Continue with Google**
+3. Enable **MFA** (optional) — OTP is sent via email or logged to backend console
+4. From the **Dashboard** — see Mission Control with live 3D Globe, GSAP metric counters, agent Q-value bars
+5. Click **New Shipment** — type a natural-language prompt:
+   > *"Ship 500kg electronics from Chennai to Berlin by next Friday, cost-optimized"*
+6. Watch the **Agent Activity Feed** stream in real-time as BullMQ worker picks up the job
+7. 6 agents run **in parallel** → RL reward scores computed → Plan appears in the results panel
+8. The **Google Map** animates the route: origin → junction waypoints → destination
+9. Back on Dashboard → **Agent Q-Value bars** update based on Meta-RL learning
+10. Open **Jaeger** (http://localhost:16686) → find the `orchestration.job:*` trace → see all sub-agent spans
+11. Open **Grafana** (http://localhost:3000) → ShipMind Enterprise dashboard → live metrics
+
+---
+
+## 🔒 Security Testing
+
+```bash
+# Attempt unauthenticated access to protected route
+curl http://localhost:3001/api/shipments/ 
+# → 401 Unauthorized
+
+# Attempt to access admin-only endpoint as USER
+curl -H "Authorization: Bearer <user_token>" http://localhost:3001/api/analytics/agent-qtable
+# → 403 Forbidden
+
+# Verify PII masking in API response
+curl -H "Authorization: Bearer <token>" http://localhost:3001/api/auth/profile
+# → {"email":"u***@domain.com"} (never full email)
+```
+
+---
+
+## 🏗 Architecture Overview
+
+```
+                        ┌─────────────────────────────────────────────────────┐
+                        │              shipmind-net (Docker bridge)           │
+                        │                                                     │
+  Browser ──HTTPS──▶  frontend:80 (nginx)                                     │
+                        │                                                     │
+  Browser ──WSS──▶   backend:3001 ◀──── redis:6379 (Socket.io adapter)       │
+                        │    │                   │                            │
+                        │    └──▶ BullMQ Queue ──┤                            │
+                        │                        ├──▶ worker-1:processor      │
+                        │                        └──▶ worker-2:processor      │
+                        │                                    │                │
+                        │                              postgres:5432           │
+                        │                                                     │
+                        │  prometheus:9090 ◀──── /metrics (backend)          │
+                        │  loki:3100 ◀──────────── stdout logs (Docker)       │
+                        │  jaeger:16686 ◀─────── OTLP traces (all services)  │
+                        │  grafana:3000 ◀──────── prometheus + loki + jaeger  │
+                        └─────────────────────────────────────────────────────┘
+```
+
+**Design Principles:**
+- **Singleton pattern**: Prisma client (`lib/prisma.ts`) and Redis clients (`lib/redis.ts`) — one instance per process
+- **Event-driven**: HTTP handler returns 202 immediately; heavy work in BullMQ workers
+- **Idempotency**: `queryId` used as BullMQ job ID — duplicate submissions are deduplicated
+- **Atomicity**: Redis `SETNX`-backed job locks prevent two workers processing the same job
+- **Parallel scaling**: `docker compose up --scale worker=4` to add more workers instantly
+
+---
+
+## 📦 Environment Variables Reference
+
+| Variable | Required | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | ✅ | Claude API key |
+| `GOOGLE_MAPS_API_KEY` | ✅ | Google Maps JavaScript API key |
+| `DATABASE_URL` | ✅ | PostgreSQL connection string |
+| `REDIS_URL` | ✅ | Redis connection string |
+| `JWT_SECRET` | ✅ | JWT signing secret (≥32 chars) |
+| `ENCRYPTION_KEY` | ✅ | AES-256 key for PII encryption |
+| `GOOGLE_CLIENT_ID` | ⚠️ | Google OAuth (optional for local) |
+| `GOOGLE_CLIENT_SECRET` | ⚠️ | Google OAuth (optional for local) |
+| `SMTP_HOST/USER/PASS` | ⚠️ | Email for MFA OTP (dev: logged to console) |
+| `FRONTEND_URL` | ℹ️ | Frontend origin for CORS (default: http://localhost:5173) |
+| `LOG_LEVEL` | ℹ️ | Winston log level (default: info) |
+| `WORKER_CONCURRENCY` | ℹ️ | BullMQ concurrency per worker (default: 2) |
+
+---
+
+## 🧪 Running Without Docker (Development)
+
+```bash
+# Terminal 1 — Backend
+cd backend
+npm install
+cp .env.example .env  # fill API keys
+npx prisma migrate dev
+npm run dev
+
+# Terminal 2 — Worker
+cd backend
+npm run dev:worker
+
+# Terminal 3 — Frontend
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
+*Built for DeepFrog Hackathon 2026 — Track 1: Agentic AI Platforms*
