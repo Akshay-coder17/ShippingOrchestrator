@@ -3,6 +3,9 @@
  */
 
 import { ParsedShippingIntent, CarbonData } from "../types/index.js";
+import { childLogger } from "../lib/logger.js";
+
+const log = childLogger("CarbonFootprintAgent");
 
 export class CarbonFootprintAgent {
   // CO2 emissions per km per kg (in grams)
@@ -16,7 +19,7 @@ export class CarbonFootprintAgent {
     intent: ParsedShippingIntent,
     qValue: number
   ): Promise<CarbonData> {
-    console.log(`[CarbonFootprintAgent] Calculating carbon footprint`);
+    log.info(`Calculating carbon footprint`, { weightKg: intent.weight_kg });
 
     // Mock route breakdown for demo
     const roadKm = 50;
@@ -41,9 +44,7 @@ export class CarbonFootprintAgent {
       },
     };
 
-    console.log(
-      `[CarbonFootprintAgent] Total CO2: ${result.totalCO2_kg}kg, Optimization: ${(optimization * 100).toFixed(0)}%`
-    );
+    log.info(`Carbon footprint calculated`, { totalCO2_kg: result.totalCO2_kg, optimization: `${(optimization * 100).toFixed(0)}%` });
 
     return result;
   }

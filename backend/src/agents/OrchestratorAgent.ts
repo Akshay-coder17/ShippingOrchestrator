@@ -144,6 +144,6 @@ export class OrchestratorAgent {
     if (this.onProgress) {
       this.onProgress(message);
     }
-    console.log(`[OrchestratorAgent] ${message}`);
+    log.info(message, { queryId: this.queryId });
   }
 }

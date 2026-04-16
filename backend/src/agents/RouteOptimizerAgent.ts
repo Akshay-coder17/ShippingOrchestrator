@@ -4,6 +4,9 @@
 
 import { ParsedShippingIntent, RouteData } from "../types/index.js";
 import { GoogleMapsService } from "../services/GoogleMapsService.js";
+import { childLogger } from "../lib/logger.js";
+
+const log = childLogger("RouteOptimizerAgent");
 
 export class RouteOptimizerAgent {
   /**
@@ -13,7 +16,7 @@ export class RouteOptimizerAgent {
     intent: ParsedShippingIntent,
     qValue: number
   ): Promise<RouteData> {
-    console.log(`[RouteOptimizerAgent] Optimizing route from${intent.origin} to ${intent.destination}`);
+    log.info(`Optimizing route from ${intent.origin} to ${intent.destination}`);
 
     // Determine transport mode based on weight and deadline
     let preferredMode: "multimodal" | "road" | "sea" | "air" = "multimodal";
@@ -40,9 +43,7 @@ export class RouteOptimizerAgent {
     // Apply Q-value based optimization boost
     route.totalDurationHours *= routeQAdjustment;
 
-    console.log(
-      `[RouteOptimizerAgent] Route optimized: ${route.totalDistanceKm}km, ${route.totalDurationHours}h`
-    );
+    log.info(`Route optimized`, { distanceKm: route.totalDistanceKm, durationHours: route.totalDurationHours });
 
     return route;
   }

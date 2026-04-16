@@ -3,6 +3,9 @@
  */
 
 import { ParsedShippingIntent, CarrierData } from "../types/index.js";
+import { childLogger } from "../lib/logger.js";
+
+const log = childLogger("CarrierSelectionAgent");
 
 interface MockCarrier {
   name: string;
@@ -58,9 +61,7 @@ export class CarrierSelectionAgent {
     intent: ParsedShippingIntent,
     qValue: number
   ): Promise<CarrierData> {
-    console.log(
-      `[CarrierSelectionAgent] Selecting carrier for ${intent.priority} priority`
-    );
+    log.info(`Selecting carrier for ${intent.priority} priority`);
 
     // Score each carrier based on intent priority
     let bestCarrier = this.CARRIERS[0];
@@ -94,8 +95,7 @@ export class CarrierSelectionAgent {
       serviceLevel: intent.priority === "speed" ? "Express" : "Standard",
     };
 
-    console.log(`[CarrierSelectionAgent] Selected: ${selected.name}`);
-
+    log.info(`Carrier selected: ${selected.name}`, { carrier: selected.name, reliability: selected.reliability });
     return selected;
   }
 }

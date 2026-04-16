@@ -3,13 +3,16 @@
  */
 
 import { ParsedShippingIntent, CostBreakdown } from "../types/index.js";
+import { childLogger } from "../lib/logger.js";
+
+const log = childLogger("PricingAgent");
 
 export class PricingAgent {
   static async execute(
     intent: ParsedShippingIntent,
     qValue: number
   ): Promise<CostBreakdown> {
-    console.log(`[PricingAgent] Calculating costs for ${intent.weight_kg}kg shipment`);
+    log.info(`Calculating costs`, { weightKg: intent.weight_kg });
 
     // Base freight cost (per kg)
     const freightCostPerKg = 2.5;
@@ -48,9 +51,7 @@ export class PricingAgent {
       currency: "USD",
     };
 
-    console.log(
-      `[PricingAgent] Total cost: $${result.total} (Q-adjusted: ${(qAdjustment * 100).toFixed(0)}%)`
-    );
+    log.info(`Pricing complete`, { totalCost: result.total, currency: result.currency, qAdjustmentPct: `${(qAdjustment * 100).toFixed(0)}%` });
 
     return result;
   }

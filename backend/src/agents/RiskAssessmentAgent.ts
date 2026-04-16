@@ -3,13 +3,16 @@
  */
 
 import { ParsedShippingIntent, RiskData } from "../types/index.js";
+import { childLogger } from "../lib/logger.js";
+
+const log = childLogger("RiskAssessmentAgent");
 
 export class RiskAssessmentAgent {
   static async execute(
     intent: ParsedShippingIntent,
     qValue: number
   ): Promise<RiskData> {
-    console.log(`[RiskAssessmentAgent] Assessing risks for ${intent.origin}→${intent.destination}`);
+    log.info(`Assessing risks for ${intent.origin}→${intent.destination}`);
 
     const riskFactors: string[] = [];
     let riskLevel: "low" | "medium" | "high" = "low";
@@ -56,9 +59,7 @@ export class RiskAssessmentAgent {
       mitigations.push("Real-time GPS tracking");
     }
 
-    console.log(
-      `[RiskAssessmentAgent] Risk level: ${riskLevel}, Factors: ${riskFactors.length}`
-    );
+    log.info(`Risk assessed`, { riskLevel, factorCount: riskFactors.length });
 
     return {
       level: riskLevel,

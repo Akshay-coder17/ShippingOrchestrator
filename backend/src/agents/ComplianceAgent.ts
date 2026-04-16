@@ -3,6 +3,9 @@
  */
 
 import { ParsedShippingIntent, ComplianceData } from "../types/index.js";
+import { childLogger } from "../lib/logger.js";
+
+const log = childLogger("ComplianceAgent");
 
 interface CountryRules {
   requiresCustoms: boolean;
@@ -48,9 +51,7 @@ export class ComplianceAgent {
     intent: ParsedShippingIntent,
     qValue: number
   ): Promise<ComplianceData> {
-    console.log(
-      `[ComplianceAgent] Checking compliance for ${intent.origin}→${intent.destination}`
-    );
+    log.info(`Checking compliance for ${intent.origin}→${intent.destination}`);
 
     const routeKey = `${intent.origin}→${intent.destination}`.split(",")[0];
     const rules =
@@ -69,9 +70,7 @@ export class ComplianceAgent {
       tariffRate: rules.tariffRate,
     };
 
-    console.log(
-      `[ComplianceAgent] Compliance check complete: ${result.documents.length} documents required`
-    );
+    log.info(`Compliance check complete`, { docsRequired: result.documents.length, tariff: result.tariffRate });
 
     return result;
   }

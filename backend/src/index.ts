@@ -31,6 +31,8 @@ import logger from "./lib/logger.js";
 import authRoutes from "./routes/auth.js";
 import shipmentsRoutes from "./routes/shipments.js";
 import analyticsRoutes from "./routes/analytics.js";
+import { requestIdMiddleware } from "./middleware/requestId.js";
+import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 
 dotenv.config();
 
@@ -99,13 +101,12 @@ app.use(
 );
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
+// Attach UUID requestId to every request (for error log correlation)
+app.use(requestIdMiddleware);
 
 // ── Structured request logging + Prometheus metrics middleware ────────────────
 app.use((req, res, next) => {
   const start = Date.now();
-  const requestId = `REQ-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-
-  (req as any).requestId = requestId;
 
   res.on("finish", () => {
     const duration = (Date.now() - start) / 1000;
@@ -117,7 +118,7 @@ app.use((req, res, next) => {
     );
 
     logger.info("HTTP request", {
-      requestId,
+      requestId: req.requestId, // Set by requestIdMiddleware
       method: req.method,
       path: req.path,
       statusCode: res.statusCode,
@@ -181,23 +182,9 @@ io.on("connection", (socket) => {
   });
 });
 
-// ── Global error handler ──────────────────────────────────────────────────────
-app.use(
-  (
-    error: any,
-    _req: express.Request,
-    res: express.Response,
-    _next: express.NextFunction
-  ) => {
-    logger.error("Unhandled error", {
-      error: error.message,
-      stack: error.stack,
-    });
-    res.status(error.status || 500).json({
-      error: error.message || "Internal server error",
-    });
-  }
-);
+// ── 404 + Global error handler (must be last) ────────────────────────────────
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 // ── Start server ──────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT || "3001", 10);
