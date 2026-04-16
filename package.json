@@ -1,0 +1,21 @@
+{
+  "name": "shipmind",
+  "version": "1.0.0",
+  "description": "Intelligent Agentic Shipping Orchestration Platform",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "yarn workspace frontend dev & yarn workspace backend dev",
+    "build": "yarn workspace frontend build && yarn workspace backend build",
+    "type-check": "yarn workspace frontend type-check && yarn workspace backend type-check",
+    "db:push": "yarn workspace backend prisma db push",
+    "db:studio": "yarn workspace backend prisma studio"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "typescript": "^5.3.3"
+  }
+}

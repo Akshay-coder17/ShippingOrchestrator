@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(cuid())
+  name              String
+  email             String    @unique
+  passwordHash      String
+  preferences       String    @default("{}")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  queries           Query[]
+  chatHistory       ChatMessage[]
+  
+  @@index([email])
+}
+
+model Query {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rawPrompt         String
+  parsedIntent      String
+  rating            Int?      // 1-5 stars
+  timestamp         DateTime  @default(now())
+
+  shipments         Shipment[]
+  agentRewards      AgentReward[]
+
+  @@index([userId])
+}
+
+model Shipment {
+  id                String    @id @default(cuid())
+  queryId           String
+  query             Query     @relation(fields: [queryId], references: [id], onDelete: Cascade)
+  shipmentPlan      String      // Full ShipmentPlan structure
+  status            String    @default("planned") // planned, in_transit, delivered, failed
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  agentRewards      AgentReward[]
+
+  @@index([queryId])
+  @@index([status])
+}
+
+model AgentReward {
+  id                String    @id @default(cuid())
+  queryId           String
+  query             Query     @relation(fields: [queryId], references: [id], onDelete: Cascade)
+  shipmentId        String?
+  shipment          Shipment? @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  agentName         String    // OrchestratorAgent, RouteOptimizerAgent, etc.
+  action            String    // Description of the action taken
+  reward            Float     // -1.0 to 1.0
+  factors           String      // { costSavings, timeAccuracy, userSatisfaction, routeEfficiency }
+  timestamp         DateTime  @default(now())
+
+  @@index([queryId])
+  @@index([agentName])
+  @@index([timestamp])
+}
+
+model RouteCache {
+  id                String    @id @default(cuid())
+  origin            String
+  destination       String
+  waypoints         String      // Array of waypoint coordinates
+  routeData         String      // Full route data from Google Maps
+  cachedAt          DateTime  @default(now())
+  expiresAt         DateTime
+
+  @@index([origin, destination])
+  @@index([expiresAt])
+}
+
+model ChatMessage {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role              String    // "user" or "assistant"
+  content           String
+  timestamp         DateTime  @default(now())
+
+  @@index([userId])
+  @@index([timestamp])
+}
+
+model UserPreference {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  preferredCarriers String      // ["DHL", "FedEx", "Maersk"]
+  weightPriority    String    @default("cost") // cost, speed, sustainability
+  currencyPreference String   @default("USD")
+  notificationSettings String   @default("{}")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}

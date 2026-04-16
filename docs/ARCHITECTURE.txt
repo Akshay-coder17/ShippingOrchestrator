@@ -1,0 +1,230 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                        SHIPMIND ARCHITECTURE DIAGRAM                           ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           FRONTEND (React + Vite)                            │
+│  http://localhost:5173                                                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌────────────────────────────┐  │
+│  │  Auth Pages     │  │  Dashboard       │  │  New Shipment Page       │  │
+│  │  Login/Register │  │  Overview Stats  │  │  Query Input              │  │
+│  └────────┬────────┘  └────────┬─────────┘  └────────────┬───────────────┘  │
+│           │                    │                        │                   │
+│           └────────────────────┼────────────────────────┘                   │
+│                                │                                            │
+│                    ┌───────────▼──────────┐                                │
+│                    │  Zustand Store       │                                │
+│                    │  (Global State)      │                                │
+│                    └───────────┬──────────┘                                │
+│                                │                                            │
+│                ┌───────────────┼───────────────┐                           │
+│                │               │               │                           │
+│          ┌─────▼──────┐   ┌────▼────────┐  ┌─▼──────────────┐             │
+│          │ Socket.io  │   │ REST API    │  │ Map Component  │             │
+│          │ Client     │   │ (Axios)     │  │ (Google Maps)  │             │
+│          └────────┬───┘   └────┬────────┘  └─┬──────────────┘             │
+│                   │            │              │                           │
+│                   └────────────┼──────────────┘                           │
+│                                │                                          │
+│                        ┌───────▼───────┐                                 │
+│                        │  API Gateway  │                                │
+│                        │  :3001        │                                │
+│                        └───────┬───────┘                                 │
+│                                │                                        │
+└────────────────────────────────┼────────────────────────────────────────┘
+                                 │
+                    ┌────────────▼──────────────┐
+                    │   BACKEND (Express.js)   │
+                    │   http://localhost:3001  │
+                    └────────────┬──────────────┘
+                                 │
+        ┌────────────────────────┼────────────────────────┐
+        │                        │                        │
+        │                        │                        │
+   ┌────▼────────┐      ┌────────▼────────┐    ┌────────▼─────────┐
+   │   Routes    │      │   Services      │    │  RL Engine       │
+   ├─────────────┤      ├─────────────────┤    ├──────────────────┤
+   │ /auth       │      │ Anthropic       │    │ RewardEngine     │
+   │ /shipments  │      │ GoogleMaps      │    │ MetaRL           │
+   │ /analytics  │      │ Weather         │    │ Q-Learning       │
+   └─────────────┘      └─────────────────┘    └──────────────────┘
+        │                        │                       │
+        └────────────────────────┼───────────────────────┘
+                                 │
+                    ┌────────────▼─────────────┐
+                    │   Multi-Agent System    │
+                    ├──────────────────────────┤
+                    │                          │
+                    │  ┌──────────────────┐   │
+                    │  │ Orchestrator     │   │
+                    │  │ (Master Agent)   │   │
+                    │  └────────┬─────────┘   │
+                    │           │              │
+            ┌───────┼───────────┼────┬────────┼────────────┐
+            │       │           │    │        │            │
+       ┌────▼─┐ ┌──▼───┐ ┌────▼─┐┌──▼──┐ ┌──▼──┐ ┌──────▼─┐
+       │Route │ │Carrier
+       │      │ │      │ │Comply│Compliance  │Risk│Carbon  │
+       │Opt   │ │Sel   │ │      │            │    │        │
+       └──────┘ └──────┘ └──────┘└──────────┘└─┬──┘└──────┬─┘
+                                                │         │
+                                                └────┬────┘
+                                                     │
+                                        ┌────────────▼──────────┐
+                                        │   Database Access     │
+                                        │    (Prisma ORM)       │
+                                        └────────────┬──────────┘
+                                                     │
+                    ┌────────────────────────────────┼────────────┐
+                    │                                │            │
+            ┌───────▼───────┐            ┌──────────▼──────┐   ┌──▼────────┐
+            │  PostgreSQL   │            │  Agent Rewards  │   │  Queries  │
+            │   Database    │            │   (RL State)    │   │  History  │
+            │               │            │                 │   │           │
+            │ ┌───────────┐ │            │ ┌─────────────┐ │   │ ┌───────┐ │
+            │ │users      │ │            │ │agent_rewards│ │   │ │       │ │
+            │ │queries    │ │            │ │  { reward   │ │   │ │parsed │ │
+            │ │shipments  │ │            │ │   action    │ │   │ │intent │ │
+            │ │preferences│ │            │ │   factors } │ │   │ │rating │ │
+            │ └───────────┘ │            │ └─────────────┘ │   │ └───────┘ │
+            └───────────────┘            └─────────────────┘   └───────────┘
+
+                    ┌─────────────────────────┐
+                    │   External APIs         │
+                    ├─────────────────────────┤
+                    │ Anthropic Claude API    │
+                    │ Google Maps Directions  │
+                    │ Distance Matrix API     │
+                    │ OpenWeather API         │
+                    └─────────────────────────┘
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                      REQUEST FLOW: New Shipment Query                         ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+1. USER INPUT
+   User types: "Ship 500kg electronics Chennai to Berlin by Friday"
+   ↓
+2. FRONTEND SUBMISSION
+   NewShipmentPage submits query via POST /api/shipments/orchestrate
+   ↓
+3. AUTHENTICATION
+   Backend validates JWT token
+   ↓
+4. INTENT PARSING
+   AnthropicService.parseShippingQuery() → Claude API
+   Extracts: { origin, destination, weight_kg, deadline, priority, goods_category }
+   ↓
+5. ORCHESTRATION
+   OrchestratorAgent.orchestrate() dispatches 6 sub-agents in parallel:
+   
+   ├─ RouteOptimizerAgent    → Queries Google Maps for multi-modal routes
+   ├─ CarrierSelectionAgent  → Ranks FedEx, DHL, Maersk by metrics
+   ├─ ComplianceAgent        → Checks India→Germany customs rules
+   ├─ RiskAssessmentAgent    → Evaluates monsoon season, port delays
+   ├─ CarbonFootprintAgent   → Calculates CO₂ for road/sea/air
+   └─ PricingAgent           → Computes freight + customs + insurance
+   
+   ↓
+6. RL REWARD FETCHING
+   Each agent retrieves historical Q-values from DB
+   MetaRL controller adjusts agent priority weights
+   ↓
+7. RESULTS SYNTHESIS
+   OrchestratorAgent combines all results into ShipmentPlan JSON
+   ↓
+8. DATABASE STORAGE
+   Save query, shipment, agent rewards to PostgreSQL
+   ↓
+9. REAL-TIME UPDATES
+   Socket.io emits orchestration:complete with full plan
+   ↓
+10. FRONTEND DISPLAY
+    Map animates route: Chennai → Dubai → Frankfurt → Berlin
+    Cost breakdown, compliance docs, risk level displayed
+    ↓
+11. USER RATING (RL FEEDBACK)
+    User rates outcome (1-5 stars)
+    RewardEngine calculates reward based on:
+    - costSavings vs predicted
+    - timeAccuracy (ETA vs actual)
+    - userSatisfaction
+    - routeEfficiency
+    ↓
+12. RL UPDATE
+    Rewards stored in agent_rewards table
+    Next query: agents' Q-values influence selection strategy
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                    REINFORCEMENT LEARNING FEEDBACK LOOP                      ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+QUERY 1: "Route to Berlin, cost-optimized"
+├─ CarrierSelectionAgent selects FedEx (Q=0.5)
+├─ Order arrives in time ✓, Cost 15% higher than DHL ✗
+├─ User rates 3/5 stars
+├─ Reward calculated: -0.2 (suboptimal cost)
+└─ AgentReward stored: { cargoSelectionAgent, reward: -0.2, factors: {...} }
+
+QUERY 2: "Route to Berlin, cost-optimized" (1 week later)
+├─ Meta-RL Controller checks CarrierSelectionAgent Q-value
+├─ Q = (historical_rewards).avg() = (-0.2 + 0.1 - 0.15) / 3 = -0.08
+├─ Epsilon-greedy: exploit → select agent with highest Q
+├─ Now tries DHL (Q=0.6 from past successes)
+├─ Order arrives + Cost 8% savings ✓
+├─ User rates 5/5 stars
+├─ Reward: +0.8
+└─ CarrierSelectionAgent learns via Q-learning update
+
+OVER TIME:
+- Agents converge to better Q-values
+- CarrierSelectionAgent learns: DHL > FedEx for Berlin routes
+- RouteOptimizerAgent learns: Spring = multimodal cheaper
+- Entire system becomes smarter with each user query
+- Dashboard shows agent performance curves trending upward
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+DEPLOYMENT TOPOLOGY (Production):
+
+                 ┌─────────────────┐
+                 │  CDN / S3        │
+                 │ (Frontend dist)  │
+                 └────────┬─────────┘
+                          │
+                 ┌────────▼────────┐
+                 │ Load Balancer   │
+                 │ (nginx/ALB)     │
+                 └────────┬────────┘
+                          │
+         ┌────────────────┼────────────────┐
+         │                │                │
+    ┌────▼────┐      ┌────▼────┐      ┌───▼────┐
+    │Express  │      │Express  │      │Express │
+    │Server 1 │      │Server 2 │      │Server N│
+    └────┬────┘      └────┬────┘      └───┬────┘
+         │               │                │
+         └───────────────┼────────────────┘
+                 ┌───────▼────────┐
+                 │ PostgreSQL     │
+                 │ (Primary)      │
+                 └───────────────┘
+                 
+                 ┌───────────────┐
+                 │ PostgreSQL    │
+                 │ (Replica)     │
+                 └───────────────┘
+                
+                 ┌───────────────┐
+                 │ Redis Cluster │
+                 │ (Session/Pub) │
+                 └───────────────┘
+                 
+              ┌──────────────────┐
+              │ Anthropic API    │
+              │ (Claude Sonnet)  │
+              └──────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════════
